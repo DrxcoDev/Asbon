@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include "compile.h"
 
 #define MAX_VARS 100
 #define MAX_VAR_NAME_LENGTH 50
@@ -164,12 +165,17 @@ int main(int argc, char *argv[]) {
 
     // Verificar que el archivo tenga la extensión .asb
     char *nombre_archivo = argv[1];
+    char *version = argv[1];
     if (strstr(nombre_archivo, ".asb") == NULL) {
         printf("Error: Solo se pueden leer archivos con la extensión .asb\n");
         return 1;
     }
 
+    if (nombre_archivo == "-v" || version == "-version") {
+        CompileRUNFunny();
+    }
     // Leer e interpretar el archivo
+    
     leer_archivo(nombre_archivo);
 
     return 0;
