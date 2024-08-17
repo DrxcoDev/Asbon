@@ -112,15 +112,6 @@ void interpretar_linea(const char *linea) {
         char valor[MAX_STRING_LENGTH];
         sscanf(linea_sin_comentarios, "%s => %255[^\n]", nombre, valor);
 
-        // Verificar si el valor es una cadena con comillas
-        if (valor[0] == '"') {
-            size_t len = strlen(valor);
-            if (len > 1) {
-                valor[len - 1] = '\0';  // Quitar la comilla final
-                memmove(valor, valor + 1, strlen(valor)); // Quitar la comilla inicial
-            }
-        }
-
         if (es_nombre_variable_valido(nombre)) {
             agregar_variable(nombre, valor);
         } else {
@@ -165,7 +156,21 @@ void leer_archivo(const char *nombre_archivo) {
     fclose(archivo);
 }
 
-// Función para iniciar la ejecución desde una DLL
-__declspec(dllexport) void ejecutar_archivo(const char *nombre_archivo) {
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        printf("Uso: %s <archivo.asb>\n", argv[0]);
+        return 1;
+    }
+
+    // Verificar que el archivo tenga la extensión .asb
+    char *nombre_archivo = argv[1];
+    if (strstr(nombre_archivo, ".asb") == NULL) {
+        printf("Error: Solo se pueden leer archivos con la extensión .asb\n");
+        return 1;
+    }
+
+    // Leer e interpretar el archivo
     leer_archivo(nombre_archivo);
+
+    return 0;
 }
