@@ -1,0 +1,14 @@
+START;
+output("Hola Mundo"); !! Imprime Hola Mundo
+a => Hola !! Asigna "Hola" a la variable a
+output(a); !! Imprime el valor de a
+b => Mundo !! Asigna "Mundo" a la variable b
+output(b); !! Imprime el valor de b
+
+input(nombre); !! Solicita al usuario el valor para la variable nombre
+output("Hola ", nombre); !! Imprime "Hola " seguido del valor de nombre
+
+input(c); !! Solicita al usuario el valor para la variable c
+output(c); !! Imprime el valor de c
+
+ENDED;
