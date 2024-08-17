@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "compile.h"
 
 #define MAX_VARS 100
 #define MAX_VAR_NAME_LENGTH 50
@@ -18,6 +17,9 @@ typedef struct {
 Variable variables[MAX_VARS];
 int var_count = 0;
 
+// Variable global para verificar la presencia de 'use COUT pkg'
+int use_cout_pkg = 0;
+
 // Función para buscar una variable por nombre
 int buscar_variable(const char *nombre) {
     for (int i = 0; i < var_count; i++) {
@@ -31,19 +33,32 @@ int buscar_variable(const char *nombre) {
 // Función para agregar o actualizar una variable
 void agregar_variable(const char *nombre, const char *valor) {
     int idx = buscar_variable(nombre);
-    if (idx == -1) {  // Si la variable no existe, la agregamos
-        if (var_count < MAX_VARS) {
-            strncpy(variables[var_count].nombre, nombre, MAX_VAR_NAME_LENGTH - 1);
-            variables[var_count].nombre[MAX_VAR_NAME_LENGTH - 1] = '\0'; // Asegurar terminación
-            strncpy(variables[var_count].valor, valor, MAX_STRING_LENGTH - 1);
-            variables[var_count].valor[MAX_STRING_LENGTH - 1] = '\0'; // Asegurar terminación
-            var_count++;
-        } else {
-            printf("Error: Se alcanzó el número máximo de variables\n");
+    int j = 0;
+
+    // Recorremos la cadena y guardamos solo los dígitos en 'valor'
+    for (int i = 0; valor[i] != '\0'; i++) {
+        if (isdigit(valor[i])) {
+            if (j < MAX_STRING_LENGTH - 1) {
+                variables[idx == -1 ? var_count : idx].valor[j++] = valor[i];
+            }
         }
-    } else {  // Si ya existe, actualizamos su valor
-        strncpy(variables[idx].valor, valor, MAX_STRING_LENGTH - 1);
-        variables[idx].valor[MAX_STRING_LENGTH - 1] = '\0'; // Asegurar terminación
+    }
+
+    // Asegurarse de terminar la cadena
+    variables[idx == -1 ? var_count : idx].valor[j] = '\0';
+
+    // Si no se encontró ningún número en 'valor'
+    if (j == 0) {
+        printf("Advertencia: No se encontraron números en el valor de la variable '%s'.\n", nombre);
+        strncpy(variables[idx == -1 ? var_count : idx].valor, valor, MAX_STRING_LENGTH - 1);
+        variables[idx == -1 ? var_count : idx].valor[MAX_STRING_LENGTH - 1] = '\0'; // Asegurar terminación
+    }
+
+    // Si la variable es nueva, agregarla
+    if (idx == -1) {
+        strncpy(variables[var_count].nombre, nombre, MAX_VAR_NAME_LENGTH - 1);
+        variables[var_count].nombre[MAX_VAR_NAME_LENGTH - 1] = '\0'; // Asegurar terminación
+        var_count++;
     }
 }
 
@@ -89,6 +104,12 @@ void interpretar_linea(const char *linea) {
         return;
     }
 
+    // Verificar si la línea es 'use COUT pkg'
+    if (strcmp(linea_sin_comentarios, "use COUT pkg") == 0) {
+        use_cout_pkg = 1;
+        return;
+    }
+
     if (strncmp(linea_sin_comentarios, "output(", 7) == 0) {
         char argumento[MAX_STRING_LENGTH];
         sscanf(linea_sin_comentarios, "output(%[^)]);", argumento);
@@ -100,7 +121,16 @@ void interpretar_linea(const char *linea) {
             if (es_nombre_variable_valido(argumento)) {
                 int idx = buscar_variable(argumento);
                 if (idx != -1) {
-                    printf("%s\n", variables[idx].valor);
+                    if (strcmp(variables[idx].valor, "ASB::cout") == 0) {
+                        if (use_cout_pkg) {
+                            // Procesar como si fuera ASB::cout
+                            printf("Simulando ASB::cout\n");
+                        } else {
+                            printf("ASB::cout no habilitado\n");
+                        }
+                    } else {
+                        printf("%s\n", variables[idx].valor);
+                    }
                 } else {
                     printf("Error: variable '%s' no definida\n", argumento);
                 }
@@ -134,6 +164,31 @@ void interpretar_linea(const char *linea) {
         } else {
             printf("Error: nombre de variable inválido '%s'\n", nombre);
         }
+    } else if (use_cout_pkg && strncmp(linea_sin_comentarios, "ASB::cout(", 10) == 0) {
+        char argumentos[MAX_STRING_LENGTH];
+        sscanf(linea_sin_comentarios, "ASB::cout(%[^)]);", argumentos);
+        
+        // Dividir los argumentos por comas
+        char *token = strtok(argumentos, ",");
+        while (token != NULL) {
+            // Trim leading and trailing spaces
+            while (isspace((unsigned char)*token)) token++;
+            char *end = token + strlen(token) - 1;
+            while (end > token && isspace((unsigned char)*end)) end--;
+            *(end + 1) = '\0';
+
+            // Si el argumento comienza con una comilla, procesar como cadena de texto
+            if (token[0] == '"') {
+                token[strlen(token) - 1] = '\0'; // Quitamos la comilla final
+                printf("%s\n", token + 1); // Quitamos la comilla inicial y imprimimos
+            } else {
+                // Imprimir el argumento tal cual
+                printf("%s\n", token);
+            }
+
+            // Obtener el siguiente argumento
+            token = strtok(NULL, ",");
+        }
     } else {
         printf("Error: sintaxis no reconocida\n");
     }
@@ -165,17 +220,12 @@ int main(int argc, char *argv[]) {
 
     // Verificar que el archivo tenga la extensión .asb
     char *nombre_archivo = argv[1];
-    char *version = argv[1];
     if (strstr(nombre_archivo, ".asb") == NULL) {
         printf("Error: Solo se pueden leer archivos con la extensión .asb\n");
         return 1;
     }
 
-    if (nombre_archivo == "-v" || version == "-version") {
-        CompileRUNFunny();
-    }
     // Leer e interpretar el archivo
-    
     leer_archivo(nombre_archivo);
 
     return 0;
