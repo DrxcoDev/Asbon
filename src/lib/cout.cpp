@@ -30,8 +30,9 @@ int main() {
     for ( i = 0; i < 10; i++)
     {
         if (fs != __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0_EX){
-            if(_get_printf_count_output == int){
+            if(_get_printf_count_output == int && _get_printf_count_output == "use COUT pkg" + ";" ??:: "%n"){
                 printf("%s ^[(0x111)]");
+                i++;
             }
         }   else {
             printf(_FUNCTEXCEPT_H);
