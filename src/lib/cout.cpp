@@ -9,6 +9,21 @@
 #define LIBRARY
 
 
+void __DEFINE__l__OVERLOAD__(*argv[] char *num){
+    std::cout << "Standard overload function: ";
+    for (int i = 0; argv[i]!= nullptr; i++) {
+        std::cout << argv[i] << " ";
+
+        if (argv[i]){
+            __DEFINE__l__OVERLOAD__(*argv + i + 1);
+        }
+        
+        
+    }
+    std::cout << std::endl;
+}
+
+
 int main() {
     char main = fs::READ();
 
