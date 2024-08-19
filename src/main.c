@@ -49,7 +49,6 @@ void agregar_variable(const char *nombre, const char *valor) {
 
     // Si no se encontró ningún número en 'valor'
     if (j == 0) {
-        printf("Advertencia: No se encontraron números en el valor de la variable '%s'.\n", nombre);
         strncpy(variables[idx == -1 ? var_count : idx].valor, valor, MAX_STRING_LENGTH - 1);
         variables[idx == -1 ? var_count : idx].valor[MAX_STRING_LENGTH - 1] = '\0'; // Asegurar terminación
     }
@@ -83,6 +82,26 @@ void eliminar_comentarios(char *linea) {
     if (comentario != NULL) {
         *comentario = '\0';  // Terminar la cadena en el inicio del comentario
     }
+}
+
+// Función para realizar operaciones aritméticas
+int realizar_operacion(const char *operacion, int a, int b) {
+    if (strcmp(operacion, "+") == 0) {
+        return a + b;
+    } else if (strcmp(operacion, "-") == 0) {
+        return a - b;
+    } else if (strcmp(operacion, "*") == 0) {
+        return a * b;
+    } else if (strcmp(operacion, "/") == 0) {
+        if (b != 0) {
+            return a / b;
+        } else {
+            printf("Error: División por cero\n");
+            exit(1);
+        }
+    }
+    printf("Error: Operación '%s' no soportada\n", operacion);
+    exit(1);
 }
 
 // Función para interpretar una línea de código
@@ -164,33 +183,59 @@ void interpretar_linea(const char *linea) {
         } else {
             printf("Error: nombre de variable inválido '%s'\n", nombre);
         }
-    } else if (use_cout_pkg && strncmp(linea_sin_comentarios, "ASB::cout(", 10) == 0) {
-        char argumentos[MAX_STRING_LENGTH];
-        sscanf(linea_sin_comentarios, "ASB::cout(%[^)]);", argumentos);
-        
-        // Dividir los argumentos por comas
-        char *token = strtok(argumentos, ",");
-        while (token != NULL) {
-            // Trim leading and trailing spaces
-            while (isspace((unsigned char)*token)) token++;
-            char *end = token + strlen(token) - 1;
-            while (end > token && isspace((unsigned char)*end)) end--;
-            *(end + 1) = '\0';
+    } else if (strncmp(linea_sin_comentarios, "ASB::cout(", 10) == 0) {
+        if (use_cout_pkg) {
+            char argumentos[MAX_STRING_LENGTH];
+            sscanf(linea_sin_comentarios, "ASB::cout(%[^)]);", argumentos);
+            
+            // Dividir los argumentos por comas
+            char *token = strtok(argumentos, ",");
+            while (token != NULL) {
+                // Trim leading and trailing spaces
+                while (isspace((unsigned char)*token)) token++;
+                char *end = token + strlen(token) - 1;
+                while (end > token && isspace((unsigned char)*end)) end--;
+                *(end + 1) = '\0';
 
-            // Si el argumento comienza con una comilla, procesar como cadena de texto
-            if (token[0] == '"') {
-                token[strlen(token) - 1] = '\0'; // Quitamos la comilla final
-                printf("%s\n", token + 1); // Quitamos la comilla inicial y imprimimos
-            } else {
-                // Imprimir el argumento tal cual
-                printf("%s\n", token);
+                // Si el argumento comienza con una comilla, procesar como cadena de texto
+                if (token[0] == '"') {
+                    token[strlen(token) - 1] = '\0'; // Quitamos la comilla final
+                    printf("%s\n", token + 1); // Quitamos la comilla inicial y imprimimos
+                } else {
+                    // Imprimir el argumento tal cual
+                    printf("%s\n", token);
+                }
+
+                // Obtener el siguiente argumento
+                token = strtok(NULL, ",");
             }
-
-            // Obtener el siguiente argumento
-            token = strtok(NULL, ",");
+        } else {
+            printf("Error: 'ASB::cout' no permitido sin 'use COUT pkg'\n");
         }
     } else {
-        printf("Error: sintaxis no reconocida\n");
+        // Verificar si es una operación matemática
+        char operacion[MAX_STRING_LENGTH];
+        char var1[MAX_STRING_LENGTH];
+        char var2[MAX_STRING_LENGTH];
+        if (sscanf(linea_sin_comentarios, "%[^+*/-]%c%[^;];", var1, operacion, var2) == 3) {
+            int idx1 = buscar_variable(var1);
+            int idx2 = buscar_variable(var2);
+
+            if (idx1 != -1 && idx2 != -1) {
+                int valor1 = atoi(variables[idx1].valor);
+                int valor2 = atoi(variables[idx2].valor);
+                int resultado = realizar_operacion(operacion, valor1, valor2);
+
+                // Convertir el resultado a cadena y almacenarlo en la variable
+                char resultado_str[MAX_STRING_LENGTH];
+                snprintf(resultado_str, sizeof(resultado_str), "%d", resultado);
+                agregar_variable(var1, resultado_str);
+            } else {
+                printf("Error: variables '%s' o '%s' no definidas\n", var1, var2);
+            }
+        } else {
+            printf("Error: sintaxis no reconocida\n");
+        }
     }
 }
 
