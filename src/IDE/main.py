@@ -92,22 +92,25 @@ def get_full_path(item):
     return os.path.join(*path_parts) if path_parts else ""
 
 # Función para crear un nuevo archivo o directorio
-def create_new():
+def create_new(is_directory=False):
     selected_item = tree.selection()
     if selected_item:
-        parent_item = tree.parent(selected_item[0])
+        parent_item = selected_item[0] if tree.item(selected_item[0], 'open') else tree.parent(selected_item[0])
         parent_path = get_full_path(parent_item) if parent_item else os.getcwd()
-        new_name = simpledialog.askstring("Nuevo", "Ingrese el nombre del nuevo archivo o directorio:")
+
+        new_name = simpledialog.askstring("Nuevo", f"Ingrese el nombre del nuevo {'directorio' if is_directory else 'archivo'}:")
         if new_name:
             new_path = os.path.join(parent_path, new_name)
             if not os.path.exists(new_path):
-                if os.path.isdir(parent_path):
-                    if not os.path.exists(new_path):
+                try:
+                    if is_directory:
                         os.makedirs(new_path)
-                else:
-                    with open(new_path, 'w') as f:
-                        f.write("")
-                update_treeview()
+                    else:
+                        with open(new_path, 'w') as f:
+                            f.write("")
+                    update_treeview()
+                except Exception as e:
+                    print(f"Error al crear {'directorio' if is_directory else 'archivo'}: {e}")
             else:
                 print("El archivo o directorio ya existe.")
 
@@ -116,11 +119,14 @@ def delete_file():
     selected_item = tree.selection()
     if selected_item:
         file_path = get_full_path(selected_item[0])
-        if os.path.isfile(file_path):
-            os.remove(file_path)
-        elif os.path.isdir(file_path):
-            os.rmdir(file_path)
-        update_treeview()
+        try:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+            elif os.path.isdir(file_path):
+                os.rmdir(file_path)
+            update_treeview()
+        except Exception as e:
+            print(f"Error al eliminar: {e}")
 
 # Función para renombrar un archivo o directorio
 def rename_file():
@@ -131,10 +137,25 @@ def rename_file():
         if new_name:
             new_path = os.path.join(os.path.dirname(old_path), new_name)
             if not os.path.exists(new_path):
-                os.rename(old_path, new_path)
-                update_treeview()
+                try:
+                    os.rename(old_path, new_path)
+                    update_treeview()
+                except Exception as e:
+                    print(f"Error al renombrar: {e}")
             else:
                 print("El nuevo nombre ya existe.")
+
+# Función para actualizar los números de línea
+def update_line_numbers(event=None):
+    try:
+        lines = text_area.get(1.0, 'end-1c').split('\n')
+        line_numbers = '\n'.join(f'{i+1}' for i in range(len(lines)))
+        line_numbers_canvas.config(state=tk.NORMAL)
+        line_numbers_canvas.delete(1.0, tk.END)
+        line_numbers_canvas.insert(tk.END, line_numbers)
+        line_numbers_canvas.config(state=tk.DISABLED)
+    except Exception as e:
+        print(f"Error al actualizar números de línea: {e}")
 
 # Crear y configurar la ventana principal
 root = tk.Tk()
@@ -169,17 +190,32 @@ text_frame.pack(side='right', fill='both', expand=True)
 text_scrollbar = tk.Scrollbar(text_frame, orient='vertical')
 text_scrollbar.pack(side='right', fill='y')
 
+# Crear un marco para los números de línea y el área de texto
+line_numbers_frame = tk.Frame(text_frame)
+line_numbers_frame.pack(side='left', fill='y')
+
+# Crear el widget Canvas para los números de línea
+line_numbers_canvas = tk.Text(line_numbers_frame, width=4, bg="#e0e0e0", fg="#000000", padx=5, takefocus=0, state=tk.DISABLED)
+line_numbers_canvas.pack(side='left', fill='y')
+
 text_area = Text(text_frame, wrap="word", yscrollcommand=text_scrollbar.set, bg="#f9f9f9", fg="#000000", font=("Consolas", 12))
-text_area.pack(expand=1, fill="both")
+text_area.pack(side='left', fill='both', expand=True)
 
 text_scrollbar.config(command=text_area.yview)
+
+# Asociar la actualización de números de línea con los eventos de cambio de texto
+text_area.bind('<KeyRelease>', update_line_numbers)
+text_area.bind('<MouseWheel>', update_line_numbers)
+text_area.bind('<Button-4>', update_line_numbers)
+text_area.bind('<Button-5>', update_line_numbers)
 
 # Menú contextual para el Treeview
 def show_context_menu(event):
     context_menu.post(event.x_root, event.y_root)
 
 context_menu = tk.Menu(root, tearoff=0)
-context_menu.add_command(label="Nuevo", command=create_new)
+context_menu.add_command(label="Nuevo archivo", command=lambda: create_new(is_directory=False))
+context_menu.add_command(label="Nueva carpeta", command=lambda: create_new(is_directory=True))
 context_menu.add_command(label="Eliminar", command=delete_file)
 context_menu.add_command(label="Renombrar", command=rename_file)
 
@@ -202,6 +238,9 @@ update_treeview()
 
 # Asociar el evento de selección del Treeview
 tree.bind('<<TreeviewSelect>>', on_tree_select)
+
+# Actualizar los números de línea inicialmente
+update_line_numbers()
 
 # Loop principal de la interfaz
 root.mainloop()
